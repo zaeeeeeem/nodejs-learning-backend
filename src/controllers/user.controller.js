@@ -74,7 +74,7 @@ const registerUser = asyncHandler( async (req, res) => {
         throw new ApiError(400, "Error in uploading file")
     }
    
-
+    
     const user = await User.create({
         fullName,
         avatar: avatar.url,
