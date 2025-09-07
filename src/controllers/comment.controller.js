@@ -6,8 +6,10 @@ import {asyncHandler} from "../utils/asyncHandler.js"
 
 const getVideoComments = asyncHandler(async (req, res) => {
     //TODO: get all comments for a video
-    const {videoId} = req.params
+    var {videoId} = req.params
     const {page = 1, limit = 10} = req.query
+
+    videoId = new mongoose.Types.ObjectId(videoId);
 
     if(!videoId) {
         throw new ApiError(400, "Video Id is Required");
@@ -17,12 +19,12 @@ const getVideoComments = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Invalid Video Id");
     }
     
-    const comments = await Comment.find({videoId}).sort({createdAt: -1})
+    const comments = await Comment.find({video: videoId}).sort({createdAt: -1})
         .skip((page - 1) * limit)
         .limit(parseInt(limit))
-        .populate("userId", "name email avatar");
+        .populate("owner", "name email avatar");
 
-    const total = await Comment.countDocuments({videoId});
+    const total = await Comment.countDocuments({video: videoId});
 
     return res.status(200).json(new ApiResponse(true, "Comments fetched successfully", {
         comments,
@@ -49,9 +51,9 @@ const addComment = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Invalid Video Id");
     }
     const comment = new Comment({
-        videoId,
-        userId,
-        text
+        content: text,
+        video: videoId,
+        owner: userId
     })
     await comment.save()
     return res.status(201).json(new ApiResponse(true, "Comment added successfully", comment))
@@ -72,15 +74,19 @@ const updateComment = asyncHandler(async (req, res) => {
     if(!mongoose.Types.ObjectId.isValid(commentId)) {
         throw new ApiError(400, "Invalid Comment Id");
     }
+
     const comment = await Comment.findById(commentId)
+
     if(!comment) {
         throw new ApiError(404, "Comment not found");
     }
-    if(comment.userId.toString() !== userId.toString()) {
+    if(comment.owner.toString() !== userId.toString()) {
         throw new ApiError(403, "You are not authorized to update this comment");
     }
-    comment.text = text
+
+    comment.content = text
     await comment.save()
+
     return res.status(200).json(new ApiResponse(true, "Comment updated successfully", comment))
 })
 
@@ -88,6 +94,7 @@ const deleteComment = asyncHandler(async (req, res) => {
     // TODO: delete a comment
     const {commentId} = req.params
     const userId = req.user._id
+
     if(!commentId) {
         throw new ApiError(400, "Comment Id is Required");
     }
@@ -101,11 +108,11 @@ const deleteComment = asyncHandler(async (req, res) => {
         throw new ApiError(404, "Comment not found");
     }
 
-    if(comment.userId.toString() !== userId.toString()) {
+    if(comment.owner.toString() !== userId.toString()) {
         throw new ApiError(403, "You are not authorized to delete this comment");
     }
 
-    await comment.remove()
+    await comment.deleteOne()
 
     return res.status(200).json(new ApiResponse(true, "Comment deleted successfully"))
 })
