@@ -101,8 +101,11 @@ const getLikedVideos = asyncHandler(async (req, res) => {
 
     const likedVideos = likes.map(like => like.video)
 
-    console.log(likedVideos)
-    console.log(likes)
+    const totalLikedVideos = likedVideos.length;
+
+    if(totalLikedVideos === 0) {
+        return res.status(200).json(new ApiResponse(true, "No liked videos found", []))
+    }
 
     return res.status(200).json(new ApiResponse(true, "Liked videos fetched successfully", likedVideos))
 })
